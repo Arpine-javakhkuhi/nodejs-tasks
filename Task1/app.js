@@ -4,6 +4,7 @@ const path = require("path");
 const writeStream = fs.createWriteStream("file sorted_files.txt");
 const dir = process.argv[2];
 
+let lineMaxLength = 0; // for creating equal lines
 let getAllFiles = (directory) => {
     if (fs.existsSync(directory)) {
         let files = [];
@@ -13,6 +14,7 @@ let getAllFiles = (directory) => {
             if (fs.lstatSync(filePath).isDirectory()) {
                 files = files.concat(getAllFiles(filePath));
             } else {
+                lineMaxLength = filePath.length > lineMaxLength ? filePath.length : lineMaxLength;
                 files.push(filePath);
             }
         });
@@ -29,7 +31,7 @@ let convertSize = (size) => {
 
     if (size < kB) {
         return size + " bytes";
-    } else if ( size < mB) {
+    } else if (size < mB) {
         return (size / kB).toFixed(0) + " kb";
     } else if (size < gB) {
         return (size / mB).toFixed(0) + " mb";
@@ -39,14 +41,23 @@ let convertSize = (size) => {
 }
 
 let sortAndWriteFiles = (directory) => {
-    let files = getAllFiles(directory);
+    const files = getAllFiles(directory);
+    lineMaxLength = lineMaxLength - directory.length + 5; // will be min 5 dashes per line
     if (files && files.length > 0) {
         files.sort((a, b) => {
             return fs.statSync(b).size - fs.statSync(a).size;
         }).forEach(el => {
-            const path = el.replace(directory, ".");
+            let path = el.replace(directory, ".");
             const fileSize = convertSize(fs.statSync(el).size);
-            writeStream.write(`${path} ------------------------- ${fileSize}\n`);
+
+            /* add dashes */
+            let length = path.length;
+            while (length < lineMaxLength) {
+                path += '-';
+                length++;
+            }
+
+            writeStream.write(`${path} ${fileSize}\n`);
         });
     } else {
         console.log(`${dir} doesn't exist or empty`);
